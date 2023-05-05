@@ -1,1 +1,1 @@
-chk_list = {'teste': 'd93db07c-1cfa-4354-b983-9a6bdd3bae61'}
+chk_list = {'teste': '95e6b8cf-4b70-468c-9e90-fa891ef643ac'}

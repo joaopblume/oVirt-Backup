@@ -1,9 +1,9 @@
+import os
 import ovirtsdk4 as sdk
 import logging
 import ovirtsdk4.types as types
 from datetime import date, datetime
 import sys
-import os
 from helpers import imagetransfer
 from time import sleep
 from helpers.common import progress
@@ -123,10 +123,19 @@ def download_backup(connection, backup, incremental=False):
         if incremental and not has_incremental:
             progress("Incremental não disponível para o disco: %r" % disk.id)
 
-        # nome do arquivo = <nome_da_vm>_<checkpoint>_<disk_id>_<modo_backup>
-        file_name = "{}_{}_{}_{}_{}.qcow2".format(
-            vm.name, hoje, backup.to_checkpoint_id, disk.id, disk.backup_mode)
-        disk_path = os.path.join(backup_dir, file_name)
+        final_dir = f'{backup_dir}/{vm_name}'
+
+        # cria o diretorio dos backups da vm se ainda nao existir
+        os.system(f'mkdir -p {final_dir}')
+        if has_incremental:
+            level = disk_chain_level(final_dir, disk.id)
+        else:
+            level = str(1)
+        
+        # nome do arquivo = <nome_da_vm>_<checkpoint>_<disk_id>_<modo_backup>_<chain_level>
+        file_name = "{}_{}_{}_{}_{}_{}.qcow2".format(
+            vm.name, hoje, backup.to_checkpoint_id, disk.id, disk.backup_mode, level)
+        disk_path = os.path.join(final_dir, file_name)
 
         # quando incremental, busca pelo ultimo full para incrementar
         if has_incremental:
@@ -188,8 +197,25 @@ def update_checkpoints(final_dict):
     f.write('chk_list = ' + str(final_dict))
     f.close()
 
-os.system('source venv/bin/activate')
 
+# determina a posição na cadeia de backups do disco
+# full = 1
+# primeiro incremental = 2
+# segundo incremental = 3
+# ... 
+def disk_chain_level(path, disk_id):
+    biggest = 0
+    files = os.listdir(path)
+    for file in files:
+        if disk_id in file:
+            atual = int(file[-7])
+            if atual > biggest:
+                biggest = atual
+    
+    return str(biggest + 1)
+
+
+# Validação e entrada dos parâmetros
 try:
     vm_name = sys.argv[1]
 except:
