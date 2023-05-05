@@ -1,0 +1,1 @@
+chk_list = {'teste': '04873bb3-f5b3-4fd0-b4d2-64befdd38a1c'}
