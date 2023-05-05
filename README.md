@@ -4,6 +4,14 @@ Create and Download disk backups (full and incremental) from the specified virtu
 
 # Installation process
 
+## 1 - Create a virtualenv venv for the dependencies:
+
+python3 -m venv venv
+
+source venv/bin/activate
+
+## 2 - Install the dependecies below:
+
 yum -y install gcc libxml2-devel python3-devel libcurl-devel openssl-devel
 
 yum -y install qemu-img
