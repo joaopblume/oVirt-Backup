@@ -227,14 +227,10 @@ try:
 
     if day_name[day] == dia_bkp:
         modo_bkp = 'full'
-    else:
-        modo_bkp = 'incremental'
-    if modo_bkp.lower() == 'incremental':
-        checkpoint = checkpoints.chk_list[vm_name]
-    elif modo_bkp.lower() == 'full':
         checkpoint = None
     else:
-        print(f'Opcao invalida: {modo_bkp.lower()}. opcoes [full / incremental]')
+        modo_bkp = 'incremental'
+        checkpoint = checkpoints.chk_list[vm_name]
 except:
     raise ValueError ('O modo do backup deve ser especificado [full / incremental]')
 
