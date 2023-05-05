@@ -221,7 +221,14 @@ try:
 except:
     raise ValueError('O nome da vm deve ser especificado')
 try:
-    modo_bkp = sys.argv[2]
+    dia_bkp = sys.argv[2]
+    day_name= ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado','domingo']
+    day = date.today().weekday()
+
+    if day_name[day] == dia_bkp:
+        modo_bkp = 'full'
+    else:
+        modo_bkp = 'incremental'
     if modo_bkp.lower() == 'incremental':
         checkpoint = checkpoints.chk_list[vm_name]
     elif modo_bkp.lower() == 'full':
