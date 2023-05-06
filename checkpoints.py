@@ -1,1 +1,1 @@
-chk_list = {'teste': 'ad6814d6-f31c-4127-baf3-db1fdc71fc9a'}
+chk_list = {'vm_name': 'to_checkpoint_id'}
