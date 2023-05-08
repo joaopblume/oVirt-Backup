@@ -193,7 +193,7 @@ def find_backing_file(checkpoint_uuid, disk_uuid):
 
 # atualiza o arquivo de checkpoints com o ultimo checkpoint criado
 def update_checkpoints(final_dict):
-    f = open("checkpoints.py", "w")
+    f = open(checkpoints_location, "w")
     f.write('chk_list = ' + str(final_dict))
     f.close()
 
