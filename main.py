@@ -131,7 +131,7 @@ def download_backup(connection, backup, incremental=False):
             level = disk_chain_level(final_dir, disk.id)
         else:
             level = str(1)
-            limpa_backups(final_dir)
+            
         
         # nome do arquivo = <nome_da_vm>_<checkpoint>_<disk_id>_<modo_backup>_<chain_level>
         file_name = "{}_{}_{}_{}_{}_{}.qcow2".format(
@@ -234,6 +234,7 @@ try:
     if day_name[day] == dia_bkp:
         modo_bkp = 'full'
         checkpoint = None
+        limpa_backups(f'{backup_dir}/{vm_name}')
     else:
         modo_bkp = 'incremental'
         checkpoint = checkpoints.chk_list[vm_name]
