@@ -219,8 +219,7 @@ def disk_chain_level(path, disk_id):
 def limpa_backups(path):
     files = os.listdir(path)
     for file in files:
-        print(file)
-        os.remove(file)
+        os.remove(os.path.join(path, file))
 
 # Validação e entrada dos parâmetros
 try:
