@@ -74,9 +74,9 @@ def take_backup(connection, vm_id, checkpoint):
 
     if backup.to_checkpoint_id is not None:
         progress(f"Checkpoint id criado: {backup.to_checkpoint_id}")
-        chk = checkpoints.chk_list
-        chk[vm_name] = backup.to_checkpoint_id
-        update_checkpoints(chk)
+    chk = checkpoints.chk_list
+    chk[vm_name] = backup.to_checkpoint_id
+    update_checkpoints(chk)
 
     return backup
 
@@ -261,3 +261,4 @@ finalize_backup(conn, vm.id)
 
 # FECHA A CONEXAO COM A API E LIBERA OS RECURSOS
 conn.close()
+ 
