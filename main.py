@@ -215,9 +215,11 @@ def disk_chain_level(path, disk_id):
     
     return str(biggest + 1)
 
+
 def limpa_backups(path):
     files = os.listdir(path)
     for file in files:
+        print(file)
         os.remove(file)
 
 # Validação e entrada dos parâmetros
