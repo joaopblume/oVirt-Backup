@@ -101,7 +101,7 @@ def finalize_backup(connection, vm_id):
     system_service = connection.system_service()
     vms_service = system_service.vms_service()
     backups_service = vms_service.vm_service(id=vm_id).backups_service()
-    backups_service.backup_service(id=bkp.id).finalize()
+    backups_service.backup_service(id='d8b666c4-c819-4a3e-9307-ba13f651618d').finalize()
 
 # faz o download do backup
 def download_backup(connection, backup, incremental=False):
@@ -227,19 +227,25 @@ try:
 except:
     raise ValueError('O nome da vm deve ser especificado')
 try:
-    dia_bkp = sys.argv[2]
-    day_name= ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado','domingo']
-    day = date.today().weekday()
-
-    if day_name[day] == dia_bkp:
-        modo_bkp = 'full'
-        checkpoint = None
-        limpa_backups(f'{backup_dir}/{vm_name}')
-    else:
-        modo_bkp = 'incremental'
-        checkpoint = checkpoints.chk_list[vm_name]
+    lista_full = sys.argv[2]
 except:
-    raise ValueError ('O modo do backup deve ser especificado [full / incremental]')
+    raise ValueError ('A politica de full/incremental deve ser especificada')
+
+if len(lista_full) < 7:
+    raise KeyError('A politica de full/incremental deve ser especificada para todos os dias da semana')
+
+# 0 = segunda, 7 = domingo
+today = date.today().weekday()
+
+if lista_full[today] == '1':
+    modo_bkp = 'full'
+    checkpoint = None
+    #limpa_backups(f'{backup_dir}/{vm_name}')
+
+else:
+    modo_bkp = 'incremental'
+    checkpoint = checkpoints.chk_list[vm_name]
+
 
 
 
@@ -260,9 +266,9 @@ hoje = date.today().strftime("%Y%m%d")
 uniq_bkp = str(datetime.now())
 
 # TIRA O BACKUP
-bkp = take_backup(conn, vm.id, checkpoint)
+#bkp = take_backup(conn, vm.id, checkpoint)
 # FAZ O DOWNLOAD DO BACKUP
-download_backup(conn, bkp)
+#download_backup(conn, bkp)
 # FINALIZA O MODO BACKUP DA VM
 finalize_backup(conn, vm.id)
 
