@@ -101,8 +101,7 @@ def finalize_backup(connection, vm_id):
     system_service = connection.system_service()
     vms_service = system_service.vms_service()
     backups_service = vms_service.vm_service(id=vm_id).backups_service()
-    backups_service.backup_service(id='d8b666c4-c819-4a3e-9307-ba13f651618d').finalize()
-
+    backups_service.backup_service(id=bkp.id).finalize()
 # faz o download do backup
 def download_backup(connection, backup, incremental=False):
     if modo_bkp and modo_bkp.lower() == 'incremental':
