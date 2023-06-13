@@ -266,9 +266,9 @@ hoje = date.today().strftime("%Y%m%d")
 uniq_bkp = str(datetime.now())
 
 # TIRA O BACKUP
-#bkp = take_backup(conn, vm.id, checkpoint)
+bkp = take_backup(conn, vm.id, checkpoint)
 # FAZ O DOWNLOAD DO BACKUP
-#download_backup(conn, bkp)
+download_backup(conn, bkp)
 # FINALIZA O MODO BACKUP DA VM
 finalize_backup(conn, vm.id)
 
