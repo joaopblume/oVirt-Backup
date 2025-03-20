@@ -11,7 +11,7 @@ from ovirt_imageio import client
 
 app = typer.Typer()
 
-# cria a conexao com o ovirt-engine
+# Create connection to the oVirt engine
 def create_connection():
     connection = sdk.Connection(
     url=url,
@@ -26,34 +26,33 @@ def create_connection():
 
 
 @app.command()
-def restore(vm_name: str, os : str = typer.Option(default='other', prompt=False), cpu : str = typer.Option(..., prompt=True), memory : str = typer.Option(..., prompt=True), directory : str = typer.Option(..., prompt=True), storage_domain : str = typer.Option(default='OLVMREPO4', prompt=True)):
+def restore(vm_name: str, cluster : str = typer.Option(default='Default', prompt=True), os : str = typer.Option(default='other', prompt=False), cpu : str = typer.Option(..., prompt=True), memory : str = typer.Option(..., prompt=True), directory : str = typer.Option(..., prompt=True), storage_domain : str = typer.Option(default='MainStorage', prompt=True)):
     
     print("Disks are located in: " + directory)
 
     connection = create_connection()
     disks_service = connection.system_service().disks_service()
 
-    sucess = 0
+    success = 0
     restored_disks = []
     disk_ids = []
 
     print("Restoring disks")
 
-    for disk in  listdir(directory):
+    for disk in listdir(directory):
         if disk.endswith(".qcow2"):
-            restored_disks.append(disk)
-            out = subprocess.check_output(['qemu-img', 'info', '--output', 'json', disk]).decode('utf-8')
-            size = int(out.split('\"virtual-size\": ')[1].split(',')[0])
+            restored_disks.append(f'{directory}/{disk}')
+            out = subprocess.check_output(['qemu-img', 'info', '--output', 'json', f'{directory}/{disk}']).decode('utf-8')
             initial_size = int(out.split('\"actual-size\": ')[1].split(',')[0])
-            print()
+            size = int(out.split('\"virtual-size\": ')[1].split(',')[0])
             upload = disks_service.add(
                 types.Disk(
-                    name=disk,
+                    name=f'{directory}/{disk}',
                     format=types.DiskFormat.COW,
                     initial_size=initial_size,
-                    provisioned_size=size,
                     backup=types.DiskBackup.INCREMENTAL,
                     content_type=types.DiskContentType.DATA,
+                    provisioned_size=size,
                     storage_domains=[
                         types.StorageDomain(
                             name=storage_domain
@@ -83,7 +82,6 @@ def restore(vm_name: str, os : str = typer.Option(default='other', prompt=False)
             )
 
             try:
-
                 print("Initiating image transfer")
                 upload_url = transfer.transfer_url
                 
@@ -99,17 +97,16 @@ def restore(vm_name: str, os : str = typer.Option(default='other', prompt=False)
                 disk_ids.append(upload.id)
             
             except:
-        
                 print("Error uploading disk")
                 imagetransfer.cancel_transfer(connection, transfer)
                 raise
             
             imagetransfer.finalize_transfer(connection, transfer, disk)
-            sucess += 1
+            success += 1
 
-    total_disks = restored_disks.__len__()
+    total_disks = len(restored_disks)
 
-    if sucess == total_disks:
+    if success == total_disks:
         print("All disks restored successfully")
 
         print(f"Initiating VM {vm_name} creation")
@@ -121,7 +118,7 @@ def restore(vm_name: str, os : str = typer.Option(default='other', prompt=False)
                 name=vm_name + "-restored",
                 
                 cluster=types.Cluster(
-                    name='Cluster',
+                    name=cluster,
                 ),
 
                 template=types.Template(
@@ -168,7 +165,7 @@ def restore(vm_name: str, os : str = typer.Option(default='other', prompt=False)
                         id=disk_id,
                     ),
                     interface=types.DiskInterface.SATA,
-                    bootable=True,
+                    bootable=False,
                     active=True,
                 ),
             )
@@ -176,7 +173,7 @@ def restore(vm_name: str, os : str = typer.Option(default='other', prompt=False)
         print("Disks attached successfully")
 
     else:
-        print("Only " + str(sucess) + " of " + str(total_disks) + " disks were restored")
+        print("Only " + str(success) + " of " + str(total_disks) + " disks were restored")
         raise Exception("Error restoring disks")
 
 if __name__ == "__main__": 

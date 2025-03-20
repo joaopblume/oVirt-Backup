@@ -13,7 +13,7 @@ import checkpoints
 from config import *
 
 
-# cria a conexao com o ovirt-engine
+# Create connection to the oVirt engine
 def create_connection():
     connection = sdk.Connection(
     url=url,
@@ -24,16 +24,17 @@ def create_connection():
     debug=True
     )
 
+    print('Connection successful')
     return connection
 
-# acessar propriedades da vm: vm.id, vm.name, etc...
+# Access VM properties: vm.id, vm.name, etc...
 def get_vm(connection, vm_name):
     vms_service = connection.system_service().vms_service()
     vm = vms_service.list(search=f'name={vm_name}', all_content=True)[0]
     if vm:
         return vm
     else:
-        raise NameError('Nome da vm incorreto')
+        raise NameError('Incorrect VM name')
 
 def get_backup(connection, vm_id):
     vm_service = connection.system_service().vms_service().vm_service(id=vm_id)
@@ -43,9 +44,9 @@ def get_backup(connection, vm_id):
             if bkp.description == uniq_bkp:
                 return bkp
     else:
-        raise FileNotFoundError ('Não existem backups para esta VM')
+        raise FileNotFoundError('No backups exist for this VM')
 
-# coloca a maquina em modo backup e tira um backup
+# Put the machine in backup mode and take a backup
 def take_backup(connection, vm_id, checkpoint):
     from_checkpoint = checkpoint
     vm_service = connection.system_service().vms_service().vm_service(id=vm_id)
@@ -61,26 +62,26 @@ def take_backup(connection, vm_id, checkpoint):
                 description=uniq_bkp
             )
         )
-
+        print('Backup started')
     else:
-        raise RuntimeError ('Não é possivel fazer o backup de uma máquina sem discos')
+        raise RuntimeError('Cannot backup a VM without disks')
     
-    progress("Aguardando a finalização do backup.")
+    progress("Waiting for backup to complete.")
 
-    # enquanto o backup nao tiver terminado, continua verificando o status dele
+    # While the backup has not finished, keep checking its status
     while backup.phase != types.BackupPhase.READY:
         sleep(1)
         backup = get_backup(connection, vm_id)
 
     if backup.to_checkpoint_id is not None:
-        progress(f"Checkpoint id criado: {backup.to_checkpoint_id}")
+        progress(f"Checkpoint ID created: {backup.to_checkpoint_id}")
     chk = checkpoints.chk_list
     chk[vm_name] = backup.to_checkpoint_id
     update_checkpoints(chk)
 
     return backup
 
-# busca os discos para o backup
+# Get disks for backup
 def get_disks(connection, vm_id):
 
     system_service = connection.system_service()
@@ -91,18 +92,23 @@ def get_disks(connection, vm_id):
     for disk_attachment in disk_attachments:
         disk_id = disk_attachment.disk.id
         disk = system_service.disks_service().disk_service(disk_id).get()
-        disks.append(disk)
-
+        if not specified_disks:
+            disks.append(disk)
+            print(disk.name)
+        else:
+            if disk.name in specified_disks:
+                disks.append(disk)
     return disks
 
-# tira a vm do modo backup
+# Take the VM out of backup mode
 def finalize_backup(connection, vm_id):
     bkp = get_backup(connection, vm_id)
     system_service = connection.system_service()
     vms_service = system_service.vms_service()
     backups_service = vms_service.vm_service(id=vm_id).backups_service()
     backups_service.backup_service(id=bkp.id).finalize()
-# faz o download do backup
+
+# Download the backup
 def download_backup(connection, backup, incremental=False):
     if modo_bkp and modo_bkp.lower() == 'incremental':
         incremental = True
@@ -115,16 +121,16 @@ def download_backup(connection, backup, incremental=False):
 
     for disk in backup_disks:
         
-        # verifica se há algum modo incremental nos discos
+        # Check if there is any incremental mode in the disks
         has_incremental = disk.backup_mode == types.DiskBackupMode.INCREMENTAL
 
-        # se o modo incremental não estiver disponível para o disco
+        # If incremental mode is not available for the disk
         if incremental and not has_incremental:
-            progress("Incremental não disponível para o disco: %r" % disk.id)
+            progress("Incremental not available for disk: %r" % disk.id)
 
         final_dir = f'{backup_dir}/{vm_name}'
 
-        # cria o diretorio dos backups da vm se ainda nao existir
+        # Create the backup directory for the VM if it doesn't exist yet
         os.system(f'mkdir -p {final_dir}')
         if has_incremental:
             level = disk_chain_level(final_dir, disk.id)
@@ -132,30 +138,30 @@ def download_backup(connection, backup, incremental=False):
             level = str(1)
             
         
-        # nome do arquivo = <nome_da_vm>_<checkpoint>_<disk_id>_<modo_backup>_<chain_level>
+        # File name = <vm_name>_<date>_<checkpoint>_<disk_id>_<backup_mode>_<chain_level>
         file_name = "{}_{}_{}_{}_{}_{}.qcow2".format(
             vm.name, hoje, backup.to_checkpoint_id, disk.id, disk.backup_mode, level)
         disk_path = os.path.join(final_dir, file_name)
 
-        # quando incremental, busca pelo ultimo full para incrementar
+        # When incremental, look for the last full to increment
         if has_incremental:
             backing_file = find_backing_file(
                 backup.from_checkpoint_id, disk.id)
         else:
             backing_file = None
 
-        # faz o download
+        # Start download
         download_disk(
             connection, backup.id, disk, disk_path,
             incremental=has_incremental,
             backing_file=backing_file)
         
-# inicia o download dos discos
+# Starts downloading disks
 def download_disk(connection, backup_id, disk, disk_path, incremental=True, backing_file=None):
-    progress(f"Fazendo download do backup {'incremental' if incremental else 'full'} DISCO: {disk.name}")
-    progress(f"Criando arquivo de backup: {disk_path}")
+    progress(f"Downloading {'incremental' if incremental else 'full'} backup DISK: {disk.name}")
+    progress(f"Creating backup file: {disk_path}")
     if backing_file:
-        progress(f"Utilizando arquivo de backup: {backing_file}")
+        progress(f"Using backup file: {backing_file}")
 
     transfer = imagetransfer.create_transfer(
         connection,
@@ -163,7 +169,7 @@ def download_disk(connection, backup_id, disk, disk_path, incremental=True, back
         types.ImageTransferDirection.DOWNLOAD,
         backup=types.Backup(id=backup_id))
     try:
-        progress(f"Transferencia de imagem {transfer.id} está pronta")
+        progress(f"Image transfer {transfer.id} is ready")
         download_url = transfer.transfer_url
 
         with client.ProgressBar() as pb:
@@ -177,12 +183,12 @@ def download_disk(connection, backup_id, disk, disk_path, incremental=True, back
                 backing_format="qcow2"
             )
     finally:
-        progress("Finalizando transferencia de imagem")
+        progress("Finalizing image transfer")
         imagetransfer.finalize_transfer(connection, transfer, disk)
 
-    progress("Download completado com sucesso")    
+    progress("Download completed successfully")    
 
-# busca algum backup anterior para incrementar junto no novo arquivo de backup
+# Find previous backup to increment with the new backup file
 def find_backing_file(checkpoint_uuid, disk_uuid):
     pattern = os.path.join(backup_dir, f"*_{checkpoint_uuid}_{disk_uuid}_*")
     matches = glob.glob(pattern)
@@ -191,17 +197,17 @@ def find_backing_file(checkpoint_uuid, disk_uuid):
 
     return os.path.relpath(matches[0], backup_dir)
 
-# atualiza o arquivo de checkpoints com o ultimo checkpoint criado
+# Update the checkpoints file with the last created checkpoint
 def update_checkpoints(final_dict):
     f = open(checkpoints_location, "w")
     f.write('chk_list = ' + str(final_dict))
     f.close()
 
 
-# determina a posição na cadeia de backups do disco
+# Determine the position in the disk backup chain
 # full = 1
-# primeiro incremental = 2
-# segundo incremental = 3
+# first incremental = 2
+# second incremental = 3
 # ... 
 def disk_chain_level(path, disk_id):
     biggest = 0
@@ -215,62 +221,71 @@ def disk_chain_level(path, disk_id):
     return str(biggest + 1)
 
 
-def limpa_backups(path):
+def clear_backups(path):
     files = os.listdir(path)
     for file in files:
         os.remove(os.path.join(path, file))
 
-# Validação e entrada dos parâmetros
+# Parameter validation and input
 try:
     vm_name = sys.argv[1]
+    print('VM Name: ' + vm_name)
 except:
-    raise ValueError('O nome da vm deve ser especificado')
+    raise ValueError('VM name must be specified')
 try:
     lista_full = sys.argv[2]
+    print('Full list: OK')
 except:
-    raise ValueError ('A politica de full/incremental deve ser especificada')
+    raise ValueError('Full/incremental policy must be specified')
 
 if len(lista_full) < 7:
-    raise KeyError('A politica de full/incremental deve ser especificada para todos os dias da semana')
+    raise KeyError('Full/incremental policy must be specified for all days of the week')
 
-# 0 = segunda, 7 = domingo
+# 0 = Monday, 6 = Sunday
 today = date.today().weekday()
 
 if lista_full[today] == '1':
     modo_bkp = 'full'
     checkpoint = None
-    #limpa_backups(f'{backup_dir}/{vm_name}')
+    #clear_backups(f'{backup_dir}/{vm_name}')
 
 else:
     modo_bkp = 'incremental'
     checkpoint = checkpoints.chk_list[vm_name]
 
+print('Backup mode: ' + modo_bkp)
 
+try:
+    specified_disks = sys.argv[3]
+    specified_disks = specified_disks.split(',')
+except:
+    specified_disks = None
 
+print('Initial validations OK')
 
 #####################################
-######## INICIO DO PROGRAMA #########
+############ PROGRAM START ##########
 #####################################
 
-# CRIA A CONEXAO
+# CREATE CONNECTION
+print('Creating connection')
 conn = create_connection()
 
-# ENCONTRA A VM PELO NOME
+# FIND VM BY NAME
 vm = get_vm(conn, vm_name)
 
-# DATA DO BACKUP
+# BACKUP DATE
 hoje = date.today().strftime("%Y%m%d")
 
-# DATETIME PARA O BACKUP
+# DATETIME FOR BACKUP
 uniq_bkp = str(datetime.now())
 
-# TIRA O BACKUP
+# TAKE BACKUP
 bkp = take_backup(conn, vm.id, checkpoint)
-# FAZ O DOWNLOAD DO BACKUP
+# DOWNLOAD BACKUP
 download_backup(conn, bkp)
-# FINALIZA O MODO BACKUP DA VM
+# FINALIZE VM BACKUP MODE
 finalize_backup(conn, vm.id)
 
-# FECHA A CONEXAO COM A API E LIBERA OS RECURSOS
+# CLOSE API CONNECTION AND FREE RESOURCES
 conn.close()
- 
